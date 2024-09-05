@@ -67,6 +67,17 @@ class Wordle(Window):
         content_height = 6 + 2 + 3
         return (h - content_height) // 2
 
+    def draw_victory_text(self, text):
+        start_row = self.get_wordle_start_row()
+        text_row = start_row - 2
+        w = self.width
+        start_col = (w - len(text)) // 2
+        for i in range(len(text)):
+            col = start_col + i
+            row = text_row
+            self.update_value(row, col, text[i], curses.A_BOLD)
+
+
     def draw_wordle(self):
         w = self.width
         h = self.height
@@ -74,6 +85,13 @@ class Wordle(Window):
         line_width = (self.word_size * 2) - 1
         start_col = (w - line_width) // 2
         start_row = self.get_wordle_start_row()
+
+        if self.done:
+            if self.words[-1] == self.solution:
+                self.draw_victory_text('You Win!')
+            else:
+                self.draw_victory_text('You Lose!')
+
 
         self.found_letters = []
         self.close_letters = []
@@ -199,8 +217,17 @@ class Wordle(Window):
         if not self.is_valid_word(self.current_word):
             return
 
+        if self.current_word == self.solution:
+            self.words.append(self.current_word)
+            self.current_word = ''
+            self.done = True
+            return
+
         self.words.append(self.current_word)
         self.current_word = ''
+
+        if len(self.words) == self.num_attempts:
+            self.done = True
 
     def backspace(self):
         if self.current_word:
