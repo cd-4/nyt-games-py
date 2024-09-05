@@ -236,13 +236,14 @@ class Wordle(Window):
     def accept_char(self, num):
         char = chr(num).upper()
 
-        if num == 127:
-            self.backspace()
+        if not self.done:
+            if num == 127:
+                self.backspace()
 
-        if num == 10:
-            self.enter()
+            if num == 10:
+                self.enter()
 
-        if char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
-            self.add_letter(char)
+            if char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+                self.add_letter(char)
 
         self.refresh(self.stdscr, force=True)
