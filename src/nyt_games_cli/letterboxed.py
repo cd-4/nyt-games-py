@@ -104,7 +104,7 @@ class LetterBoxed(Window):
         self.draw_help()
 
     def draw_help(self):
-        help_str= 'Enter Word: <Enter> | Delete: <Backspace> | Restart <CTRL> + R'
+        help_str= 'Enter Word: <Enter> | Delete: <Backspace> | Restart <Ctrl+R>'
         row = self.height - 1
         for i in range(len(help_str)):
             self.update_value(row, i, help_str[i], 0)

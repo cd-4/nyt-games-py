@@ -1,10 +1,4 @@
-import os
-import requests
-import curses
-import time
-
 from pycurses.window import Window
-from pycurses import lines
 
 from nyt_games_cli import utils
 
@@ -22,9 +16,13 @@ class Strands(Window):
         self.grid_height = 8
         self.current_word = []
         self.found_spangram = False
+        self.hints_used = 0
 
     def update_data(self, data):
         self.game_data = data
+
+    def is_valid_word(self, word):
+        return word in self.game_data['solutions']
 
     def current_position(self):
         if self.current_word:
@@ -68,6 +66,8 @@ class Strands(Window):
         self.clear_page()
         self.draw_board()
         self.draw_words()
+        #self.draw_help()
+        #self.draw_hints()
 
     def clear_page(self):
         for c in range(self.width):
@@ -132,6 +132,14 @@ class Strands(Window):
         r, c = self.get_cell_screen_location(last_cell)
         self.update_value(r, c, letter, color_mod)
 
+    def draw_help(self):
+        last_row = self.height - 1
+        help_text_3 = 'Submit Word: <Enter> | Remove Letter: <Backspace>'
+        help_text_2 = 'Clear Word: <Ctrl+R> | Use Hint: <Ctrl+H>'
+        help_text =   'Next Letter: <Tab> | Prev Letter: <Shift+Tab>'
+        self.draw_text(help_text_3, last_row - 2, 0, 0)
+        self.draw_text(help_text_2, last_row - 1, 0, 0)
+        self.draw_text(help_text, last_row, 0, 0)
 
     def draw_words(self):
 
@@ -155,6 +163,42 @@ class Strands(Window):
         line_color = self.colors.get_color_id('Black', 'White')
         current_word_cells = [r[1] for r in self.current_word]
         self.highlight_word(current_word_cells, current_color, line_color)
+
+    def has_hint(self):
+        used = self.hints_used
+        num_guesses = len(self.guessed_words)
+        return num_guesses - used * 3 > 2
+
+    def draw_hints(self):
+
+        used = self.hints_used
+        num_guesses = len(self.guessed_words)
+        hints_allowed = (num_guesses // 3) - used
+        hint_progress = 0
+        if hints_allowed > 0:
+            hint_progress = 3
+        else:
+            hint_progress = num_guesses % 3
+
+
+        row, col = self.get_cell_screen_location([self.grid_height-1, 0])
+
+        hint_row = row + 2
+        hint_col = col + 4
+
+        self.update_value(hint_row, hint_col, '[', 0)
+        self.update_value(hint_row, hint_col + 7, ']', 0)
+
+        hint_text = ' Hint '
+        bar_color = self.colors.get_color_id('White', 'Black')
+        bar_col = hint_col + 1
+        for c in range(len(hint_text)):
+            col = hint_col + c + 1
+            if c < hint_progress * 2:
+                self.update_value(hint_row, col, hint_text[c], bar_color)
+            else:
+                self.update_value(hint_row, col, hint_text[c], 0)
+        return
 
 
     def get_cell_screen_location(self, cell):
@@ -246,10 +290,16 @@ class Strands(Window):
                 self.game_data['themeCoords'][current_word_text] = current_word_cells
                 self.found_words.append(current_word_text)
                 self.current_word = []
+                return
 
         spangram = self.get_spangram()
         if current_word_text in spangram:
             self.found_spangram = True
+            self.current_word = []
+            return
+
+        if self.is_valid_word(current_word_text) and current_word_text not in self.guessed_words:
+            self.guessed_words.append(current_word_text)
             self.current_word = []
 
     def backspace(self):

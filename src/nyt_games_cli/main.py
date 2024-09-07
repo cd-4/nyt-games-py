@@ -18,32 +18,41 @@ class NYTGames(MainWindow):
         self.base_layout = Layout(colors=self.colors, defaultchar='.', defaultattr=0)
         self.add_child(self.base_layout)
 
-        '''
         self.letter_boxed = LetterBoxed(colors=self.colors, defaultchar=' ', defaultattr=0)
-        self.base_layout.add_child(self.letter_boxed)
+        #self.base_layout.add_child(self.letter_boxed)
+
+        self.strands = Strands(colors=self.colors, defaultchar=' ', defaultattr=0)
+        #self.base_layout.add_child(self.strands)
 
         self.wordle = Wordle(colors=self.colors, defaultchar=' ', defaultattr=0)
         self.base_layout.add_child(self.wordle)
-        '''
-        self.strands = Strands(colors=self.colors, defaultchar=' ', defaultattr=0)
-        self.base_layout.add_child(self.strands)
-
 
         self.load()
 
+    def set_app_focus(self, app):
+        self.base_layout.children = [app]
+        app.resize(self.width, self.height)
+        self.refresh(self.stdscr, force=True)
+
     def load(self):
         self.game_data = load_game_data()
-        #self.letter_boxed.update_data(self.game_data['letterboxed'])
-        #self.wordle.update_data(self.game_data['wordle'])
+        self.letter_boxed.update_data(self.game_data['letterboxed'])
+        self.wordle.update_data(self.game_data['wordle'])
         self.strands.update_data(self.game_data['strands'])
 
     def process_char(self, char):
         if char == -1:
             self.terminate()
             exit(0)
-        #self.letter_boxed.accept_char(char)
-        #self.wordle.accept_char(char)
-        self.strands.accept_char(char)
+        if char == 49: # 1
+            self.set_app_focus(self.wordle)
+        if char == 50: # 2
+            self.set_app_focus(self.strands)
+        if char == 51: # 3
+            self.set_app_focus(self.letter_boxed)
+
+        self.base_layout.children[0].accept_char(char)
+        self.refresh(self.stdscr, force=True)
 
 if __name__ == '__main__':
     NYTGames().loop()
