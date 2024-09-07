@@ -23,17 +23,6 @@ def get_date_str():
         month = '0' + month
     return f'{year}-{month}-{day}'
 
-
-def current_event_loop_exists() -> bool:
-    return asyncio.get_event_loop_policy()._local._loop is not None
-
-def get_current_loop():
-    if not current_event_loop_exists():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop
-    return asyncio.get_event_loop()
-
 def get_mini_data_from_html(content):
     soup = BeautifulSoup(content, 'html.parser')
 
@@ -104,91 +93,6 @@ def load_mini_data():
         get_mini_data_from_html(content)
         browser.close()
 
-
-async def load_data(url, page_thing, func_to_call):
-    browser = await launch()
-    page = await browser.newPage()
-    await page.goto(url)
-
-    await page.click('#portal-game-modals > div > div > div.xwd__modal--body.xwd__start-modal.mini > article > button')
-    await page.click('#portal-game-toolbar > div > ul > div.xwd__toolbar--expandedMenu > li:nth-child(2) > button')
-    await page.click('#portal-game-toolbar > div > ul > div.xwd__toolbar--expandedMenu > li:nth-child(2) > ul > li:nth-child(3) > button')
-    asyncio.sleep(1)
-    await page.click('#portal-game-modals > div > div > div.xwd__modal--body.xwd__confirmation-modal--wrapper.animate-opening > article > div > button:nth-child(2)')
-    asyncio.sleep(0.5)
-    return
-
-    content = await page.content()
-
-    soup = BeautifulSoup(content, 'html.parser')
-
-    clue_lists = soup.find_all('div', class_='xwd__clue-list--wrapper')
-    clue_data = {}
-    for cl in clue_lists:
-        title_soup = cl.find('h3', class_='xwd__clue-list--title')
-        direction = title_soup.text
-        direction_data = {}
-
-        clues = cl.find_all('li', class_='xwd__clue--li')
-        for item in clues:
-            number = item.find('span', class_='xwd__clue--label').text
-            clue_text = item.find('span', class_="xwd__clue--text xwd__clue-format").text
-            direction_data[number] = clue_text
-        clue_data[direction] = direction_data
-
-    cell_soup = soup.find('g', {'data-group': 'cells'})
-    i = 0
-
-
-    cells = cell_soup.find_all('g', class_='xwd__cell')
-
-    index = 0
-    boxes = []
-    for cell in cells:
-        clue_soup = cell.find('text', {'text-anchor' : 'start'})
-        letter_soup = cell.find('text', {'text-anchor' : 'middle'})
-
-        has_text = letter_soup != None
-        has_clue = clue_soup != None
-
-        clue_text = None
-        if has_clue:
-            clue_text = int(clue_soup.text)
-        letter = None
-        if has_text:
-            letter = letter_soup.text
-
-        cell_data = {
-                'clue': clue_text,
-                'empty': not has_text,
-                'letter': letter,
-                }
-        print(clue_text, has_text, letter)
-        boxes.append(cell_data)
-        print(cell.prettify())
-
-    mini_data = {
-            'clues' : clue_data,
-            'boxes' : boxes
-            }
-    global data
-    data['mini'] = mini_data
-
-    
-def load_async_data(url, page_thing, func_to_call):
-    loop = get_current_loop()
-    task = loop.create_task(load_data(url, page_thing, func_to_call))
-    return task
-
-async def load_mini_data_new():
-    def store_letterboxed(in_data):
-        print(in_data)
-        global data
-        data['letterboxed'] = in_data
-        #data['letterboxed'] = sides
-    mini_url = 'https://www.nytimes.com/crosswords/game/mini'
-    return await load_async_data(mini_url, 'window.gameData', store_letterboxed)
-
 def load_strands_data():
     date = get_date_str()
     url = f'https://www.nytimes.com/svc/strands/v2/{date}.json'
@@ -196,7 +100,6 @@ def load_strands_data():
     jsondata = res.json()
     global data
     data['strands'] = jsondata
-
 
 def load_wordle_data():
     date = get_date_str()
@@ -206,24 +109,6 @@ def load_wordle_data():
     solution = jsondata['solution']
     global data
     data['wordle'] = solution
-
-'''
-def load_mini_data():
-    url = 'https://www.nytimes.com/crosswords/game/mini'
-    res = requests.get(url)
-    soup = BeautifulSoup(res.text, 'html.parser')
-
-    grid = soup.find('div', class_='crossword-grid')
-    print(grid)
-
-
-    titles = soup.find_all('div', class_='xwd__clue-list--wrapper')
-    with open('results.txt', 'w+') as f:
-        f.write(soup.prettify())
-
-    print(titles)
-'''
-
 
 def load_letterboxed_data():
     url = 'https://nytimes.com/puzzles/letter-boxed'
@@ -256,24 +141,12 @@ def load_game_data():
     load_letterboxed_data()
     load_strands_data()
     load_mini_data()
-
     return data
 
 
 def main():
-    #load_game_data()
-    #load_mini_data()
-    global data
-
-    '''
-    loop = get_current_loop()
-    task = load_mini_data_new()
-    loop.run_until_complete(task)
-    '''
-    load_mini_data()
-    pprint(data)
-
-
+    load_game_data()
+    pprint(data['mini'])
 
 if __name__ == '__main__':
     main()
