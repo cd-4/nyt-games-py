@@ -1,37 +1,13 @@
 import asyncio
 import requests
+import re
 from datetime import datetime
 from pyppeteer import launch
 
 global data
 data = {}
 
-def current_event_loop_exists() -> bool:
-    return asyncio.get_event_loop_policy()._local._loop is not None
-
-def get_current_loop():
-    if not current_event_loop_exists():
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop
-    return asyncio.get_event_loop()
-
-
-def load_async_data(url, page_thing, func_to_call):
-    loop = get_current_loop()
-    task = loop.create_task(load_data(url, page_thing, func_to_call))
-    return task
-
-async def load_data(url, page_thing, func_to_call):
-    browser = await launch()
-    page = await browser.newPage()
-    await page.goto(url)
-    content = await page.evaluate(page_thing, force_expr=True)
-    func_to_call(content)
-    await browser.close()
-
-
-def load_wordle_data():
+def get_date_str():
     now = datetime.now()
     day = str(now.day)
     month = str(now.month)
@@ -40,26 +16,59 @@ def load_wordle_data():
         day = '0' + day
     if len(month) == 1:
         month = '0' + month
-    url = f'https://www.nytimes.com/svc/wordle/v2/{year}-{month}-{day}.json'
+    return f'{year}-{month}-{day}'
+
+# https://www.nytimes.com/svc/strands/v2/2024-09-01.json
+# https://www.nytimes.com/svc/wordle/v2/2024-09-01.json
+
+def load_strands_data():
+    date = get_date_str()
+    url = f'https://www.nytimes.com/svc/strands/v2/{date}.json'
+    res = requests.get(url)
+    jsondata = res.json()
+    global data
+    data['strands'] = jsondata
+
+
+def load_wordle_data():
+    date = get_date_str()
+    url = f'https://www.nytimes.com/svc/wordle/v2/{date}.json'
     res = requests.get(url)
     jsondata = res.json()
     solution = jsondata['solution']
     global data
     data['wordle'] = solution
 
-async def load_letterboxed_data():
-    def store_letterboxed(in_data):
-        global data
-        data['letterboxed'] = in_data
-        #data['letterboxed'] = sides
-    return await load_async_data('https://www.nytimes.com/puzzles/letter-boxed', 'window.gameData', store_letterboxed)
+def load_letterboxed_data():
+    url = 'https://nytimes.com/puzzles/letter-boxed'
+    res = requests.get(url)
+    nyt_groups = re.search(
+        r'\"sides\":\[\"([A-Z]{3})\",\"([A-Z]{3})\",\"([A-Z]{3})\",\"([A-Z]{3})\"\]',
+    res.text)
+    sides = list(nyt_groups.groups())
+    valid_words = re.search(
+            r'\"dictionary\":\[([A-Z,"]*)\]', res.text
+            )
+    words_str = valid_words.groups()[0]
+    words = [w.strip('"') for w in words_str.split(',')]
+    par_group = re.search(
+            r'\"par\":([0-9]+)', res.text
+            )
+    par_value = int(par_group.groups()[0])
+
+    letterboxed_dict = {
+            'par' : par_value,
+            'dictionary' : words,
+            'sides' : sides
+            }
+    global data
+    data['letterboxed'] = letterboxed_dict
 
 def load_game_data():
     global data
-    loop = get_current_loop()
     load_wordle_data()
-    task = load_letterboxed_data()
-    loop.run_until_complete(task)
+    load_letterboxed_data()
+    load_strands_data()
 
     return data
 
