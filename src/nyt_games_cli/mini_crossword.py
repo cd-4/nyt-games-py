@@ -1,4 +1,5 @@
 import math
+import curses
 from pycurses.window import Window
 
 from nyt_games_cli import utils
@@ -6,17 +7,12 @@ from nyt_games_cli import utils
 class Mini(Window):
 
     def __init__(self, *args, **kwargs):
-        self.use_colors = True
         self.game_data = {}
         super().__init__(*args, **kwargs)
         self.set_title('Mini')
         self.done = False
-        self.guessed_words = []
-        self.found_words = []
-        self.grid_width = 6
-        self.grid_height = 8
-        self.current_word = []
-        self.found_spangram = False
+        self.current_position = [0, 1]
+        self.is_down = False
 
     def update_data(self, data):
         self.game_data = data
@@ -39,28 +35,119 @@ class Mini(Window):
         box_data.append(row)
         self.grid_data = box_data
 
+        self.horizontal_movements = []
+
+        for row_ind in range(self.box_size):
+            for col_ind in range(self.box_size):
+                cell = self.grid_data[row_ind][col_ind]
+                if cell['letter']:
+                    self.horizontal_movements.append([row_ind, col_ind])
+
+        self.vertical_movements = []
+
+        for col_ind in range(self.box_size):
+            for row_ind in range(self.box_size):
+                cell = self.grid_data[row_ind][col_ind]
+                if cell['letter']:
+                    self.vertical_movements.append([row_ind, col_ind])
+
+        self.guesses = [[None for i in range(self.box_size)] for x in range(self.box_size)]
+        self.solved = [[None for i in range(self.box_size)] for x in range(self.box_size)]
+
     def create_mini(self):
         self.clear_page()
         self.draw_board()
+        self.draw_hints()
 
     def clear_page(self):
         for row in range(self.height):
             for col in range(self.width):
                 self.update_value(row, col, ' ', 0)
 
+    def has_letter(self, row, col):
+        if row < 0 or row >= self.box_size:
+            return False
+        if col < 0 or col >= self.box_size:
+            return False
+        return self.grid_data[row][col]['letter'] != None
+
+    def get_current_word_cells(self):
+        pos = self.current_position
+        highlighted_cells = []
+        if self.is_down:
+            col = pos[1]
+            sections = []
+            new_section = []
+            for row in range(self.box_size):
+                if self.has_letter(row, col):
+                    new_section.append([row, col])
+                else:
+                    sections.append(new_section)
+                    new_section = []
+            sections.append(new_section)
+            for section in sections:
+                if pos in section:
+                    return section
+        else:
+            row = pos[0]
+            sections = []
+            new_section = []
+            for col in range(self.box_size):
+                if self.has_letter(row, col):
+                    new_section.append([row, col])
+                else:
+                    sections.append(new_section)
+                    new_section = []
+            sections.append(new_section)
+            for section in sections:
+                if pos in section:
+                    return section
+        return []
+
+    def get_start_col(self):
+        return 3
+
+    def get_start_row(self):
+        return 3
+
+    def get_hor_gap_size(self):
+        return 3
+
+    def get_grid_total_width(self):
+        hor_gap_size = self.get_hor_gap_size()
+        return self.box_size * hor_gap_size + self.box_size + 1
+
+    def get_grid_total_height(self):
+        return self.box_size * 2 + 1
+
+    def get_current_clue(self):
+        pos = self.get_word_start()
+        return int(self.grid_data[pos[0]][pos[1]]['clue'])
+
+    def get_word_start(self):
+        pos = self.current_position
+        if self.is_down:
+            while self.has_letter(pos[0]-1, pos[1]) and pos[0]-1 >= 0:
+                pos = [pos[0]-1, pos[1]]
+        else:
+            while self.has_letter(pos[0], pos[1]-1) and pos[1]-1 >= 0:
+                pos = [pos[0], pos[1]-1]
+        return pos
+
+    def switch_axis(self):
+        self.is_down = not self.is_down
+
     def draw_board(self):
-        hor_gap_size = 3
+        hor_gap_size = self.get_hor_gap_size()
 
-        total_width = self.box_size * hor_gap_size + self.box_size + 1
-        total_height = self.box_size * 2 + 1
+        total_width = self.get_grid_total_width()
+        total_height = self.get_grid_total_height()
 
-        start_col = 3
-        start_row = 3
+        start_col = self.get_start_col()
+        start_row = self.get_start_row()
 
         white = self.colors.get_color_id('White', 'Black')
-
-
-
+        word_cells = self.get_current_word_cells()
 
         for r in range(total_height):
             if r % 2 == 0:
@@ -69,6 +156,9 @@ class Mini(Window):
                 line = ('|' + ' ' * hor_gap_size) * self.box_size + '|'
             self.draw_text(line, start_row + r, start_col, white)
 
+
+        yellow = self.colors.get_color_id('Yellow', 'Black') | curses.A_BOLD
+        cyan = self.colors.get_color_id('Cyan', 'Black') | curses.A_BOLD
         for row_ind in range(len(self.grid_data)):
             data_row = self.grid_data[row_ind]
 
@@ -78,37 +168,27 @@ class Mini(Window):
                 letter = element['letter']
                 found = element['found']
 
-                if row_ind == 2 and col_ind == 1:
-                    letter = None
-                if row_ind == 2 and col_ind == 2:
-                    letter = None
-                if row_ind == 1 and col_ind == 2:
-                    letter = None
-                if row_ind == 0 and col_ind == 2:
-                    letter = None
-                if row_ind == 3 and col_ind == 4:
-                    letter = None
-                if row_ind == 0 and col_ind == 4:
-                    letter = None
-
                 row = start_row + 1 + row_ind * 2
                 col = start_col + 1 + col_ind * 4
 
                 if letter:
-                    self.update_value(row, col + 1, letter, white)
+                    text = ' {} '.format(letter)
+                    color = white | curses.A_BOLD
+                    if self.current_position == [row_ind, col_ind]:
+                        color = yellow
+                    elif [row_ind, col_ind] in word_cells:
+                        color = cyan
+
+                    guess = self.guesses[row_ind][col_ind]
+                    if guess:
+                        self.draw_text(' {} '.format(guess), row, col, color)
+                    else:
+                        self.draw_text('   '.format(guess), row, col, color)
+
+                    if clue:
+                        self.draw_text(str(clue), row-1, col-1, white)
+
                 else:
-                    '''
-                    if row_ind == 0: # First Row
-                        self.draw_text('---', row-1, col, 0)
-                    elif row_ind == self.box_size - 1: # Last Row
-                        self.draw_text('---', row+1, col, 0)
-
-                    if col_ind == 0:
-                        self.update_value(row, col-1, '|', 0)
-                    elif col_ind == self.box_size - 1:
-                        self.update_value(row, col+3, '|', 0)
-                    '''
-
                     self.draw_text('   ', row, col, 0)
 
         # At this point the lines between black sections will be white still
@@ -168,7 +248,31 @@ class Mini(Window):
                 self.match_corner(top_right)
                 self.match_corner(bottom_right)
 
+    def draw_hints(self):
+        total_height = self.get_grid_total_height()
 
+        start_col = self.get_start_col()
+        start_row = self.get_start_row()
+
+        current_clue = self.get_current_clue()
+
+        current_row = start_row + total_height + 1
+        for direction in self.clues:
+            self.draw_text(direction + ':', current_row, start_col, curses.A_BOLD)
+            current_row += 1
+
+            for number in self.clues[direction]:
+                clue_text = self.clues[direction][number]
+                text = f'  {number}: {clue_text}'
+                mod = 0
+                if int(number) == current_clue:
+                    if self.is_down and direction == 'Down':
+                        mod = curses.A_BOLD
+                    elif not self.is_down and direction == 'Across':
+                        mod = curses.A_BOLD
+                self.draw_text(text, current_row, start_col, mod)
+                current_row += 1
+            current_row += 1
 
 
     def match_corner(self, corner):
@@ -220,22 +324,89 @@ class Mini(Window):
         if self.game_data:
             self.create_mini()
 
+    def go_to_previous_letter(self):
+        pos = self.current_position
+        if self.is_down:
+            if pos[0] == 0:
+                self.current_position = [pos[0], (pos[1] - 1) % self.box_size]
+            else:
+                self.current_position = [(pos[0] - 1) % self.box_size, pos[1]]
+        else:
+            if pos[1] == 0:
+                self.current_position = [(pos[0] - 1) % self.box_size, self.box_size - 1]
+            else:
+                self.current_position = [pos[0], (pos[1] - 1) % self.box_size]
+
+        if not self.has_letter(*self.current_position):
+            self.go_to_previous_letter()
+
+    def go_to_next_letter(self):
+        pos = self.current_position
+
+        if self.is_down:
+            if pos[0] == self.box_size - 1:
+                self.current_position = [pos[0], (pos[1] + 1) % self.box_size]
+            else:
+                self.current_position = [(pos[0] + 1) % self.box_size, pos[1]]
+        else:
+            if pos[1] == self.box_size - 1:
+                self.current_position = [(pos[0] + 1) % self.box_size, 0]
+            else:
+                self.current_position = [pos[0], (pos[1] + 1) % self.box_size]
+
+        if not self.has_letter(*self.current_position):
+            self.go_to_next_letter()
+
+    def go_to_next_word(self):
+        start_clue = self.get_current_clue()
+        current_clue = start_clue
+        while current_clue == start_clue:
+            self.go_to_next_letter()
+            current_clue = self.get_current_clue()
+        self.current_position = self.get_word_start()
+
+
     def add_letter(self, letter):
-        pass
+        pos = self.current_position
+        self.guesses[pos[0]][pos[1]] = letter
+        self.go_to_next_letter()
 
     def enter(self):
-        pass
+        self.go_to_next_word()
 
     def backspace(self):
-        pass
+        pos = self.current_position
+        self.guesses[pos[0]][pos[1]] = None
+        self.go_to_previous_letter()
+        pos = self.current_position
+        self.guesses[pos[0]][pos[1]] = None
 
     def tab(self, reverse=False):
-        pass
+        self.switch_axis()
+
+    def move_right(self, amount):
+        index = self.horizontal_movements.index(self.current_position)
+        new_ind = (index + amount) % len(self.horizontal_movements)
+        self.current_position = self.horizontal_movements[new_ind]
+
+    def move_down(self, amount):
+        index = self.vertical_movements.index(self.current_position)
+        new_ind = (index + amount) % len(self.vertical_movements)
+        self.current_position = self.vertical_movements[new_ind]
 
     def accept_char(self, num):
         char = chr(num)
 
         if not self.done:
+
+            if num == 258 or char == 'S': # Down Arrow
+                self.move_down(1)
+            if num == 259 or char == 'W': # Up Arrow
+                self.move_down(-1)
+            if num == 260 or char == 'A': # Left Arrow
+                self.move_right(-1)
+            if num == 261 or char == 'D': # Right Arrow
+                self.move_right(1)
 
             # CTRL + R
             if num == 18:
