@@ -1,3 +1,5 @@
+import random
+
 from pycurses.window import Window
 
 from nyt_games_cli import utils
@@ -17,6 +19,7 @@ class Strands(Window):
         self.current_word = []
         self.found_spangram = False
         self.hints_used = 0
+        self.hint_words = []
 
     def update_data(self, data):
         self.game_data = data
@@ -66,8 +69,9 @@ class Strands(Window):
         self.clear_page()
         self.draw_board()
         self.draw_words()
-        #self.draw_help()
-        #self.draw_hints()
+        self.draw_help()
+        self.draw_hints()
+        self.draw_clue()
 
     def clear_page(self):
         for c in range(self.width):
@@ -169,6 +173,16 @@ class Strands(Window):
         num_guesses = len(self.guessed_words)
         return num_guesses - used * 3 > 2
 
+    def draw_centered_text(self, text, row):
+        w = self.width
+        col = -1 + (w - len(text)) // 2
+        self.draw_text(text, row, col, 0)
+
+    def draw_clue(self):
+        clue = self.game_data['clue']
+        row, col = self.get_cell_screen_location([0, 0])
+        self.draw_centered_text(clue, row - 3)
+
     def draw_hints(self):
 
         used = self.hints_used
@@ -198,8 +212,19 @@ class Strands(Window):
                 self.update_value(hint_row, col, hint_text[c], bar_color)
             else:
                 self.update_value(hint_row, col, hint_text[c], 0)
-        return
 
+        if self.hint_words:
+            board_data = self.get_board_data()
+            hint_color = self.colors.get_color_id('Magenta', 'Black')
+            for hint_word in self.hint_words:
+                coords = self.get_theme_words()[hint_word]
+                for coord in coords:
+                    if self.current_word:
+                        if coord == self.current_word[-1][1]:
+                            continue
+                    row, col = self.get_cell_screen_location(coord)
+                    current_letter = board_data[coord[0]][coord[1]]
+                    self.update_value(row, col, current_letter, hint_color)
 
     def get_cell_screen_location(self, cell):
         w = self.width
@@ -289,6 +314,8 @@ class Strands(Window):
             if self.tupleset(current_word_cells) == self.tupleset(word_cells):
                 self.game_data['themeCoords'][current_word_text] = current_word_cells
                 self.found_words.append(current_word_text)
+                if current_word_text in self.hint_words:
+                    self.hint_words.remove(current_word_text)
                 self.current_word = []
                 return
 
@@ -296,6 +323,8 @@ class Strands(Window):
         if current_word_text in spangram:
             self.found_spangram = True
             self.current_word = []
+            if current_word_text in self.hint_words:
+                self.hint_words.remove(current_word_text)
             return
 
         if self.is_valid_word(current_word_text) and current_word_text not in self.guessed_words:
@@ -367,6 +396,16 @@ class Strands(Window):
     def clear_selection(self):
         self.current_word = []
 
+    def get_hint(self):
+        if not self.has_hint():
+            return
+
+        theme_words = self.get_theme_words()
+        trimmed = [w for w in theme_words if w not in self.found_words]
+        hint_word = random.choice(trimmed)
+        self.hint_words.append(hint_word)
+        self.hints_used += 1
+
     def accept_char(self, num):
         char = chr(num)
 
@@ -387,6 +426,9 @@ class Strands(Window):
 
             if num == 10:
                 self.enter()
+
+            if num == 63: #?
+                self.get_hint()
 
             if char in 'WASD':
                 pass

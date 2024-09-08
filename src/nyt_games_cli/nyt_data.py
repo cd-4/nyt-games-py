@@ -1,12 +1,8 @@
-import asyncio
-import time
 import requests
 import re
 from pprint import pprint
 from datetime import datetime
-from pyppeteer import launch
 from bs4 import BeautifulSoup
-#import playwright
 from playwright.sync_api import Playwright, sync_playwright
 
 global data
