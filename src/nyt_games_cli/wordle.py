@@ -52,6 +52,7 @@ class Wordle(Window):
         self.clear_page()
         self.draw_wordle()
         self.draw_keyboard()
+        self.draw_help()
 
     def calc_box_height(self):
         self.box_height = min([self.height - 7, 25])
@@ -125,6 +126,10 @@ class Wordle(Window):
                         color = self.colors.get_color_id('White', 'Black')
 
                 self.update_value(row, col, letter, color)
+
+    def draw_help(self):
+        text = 'A-Z: Add Letter | <Enter> Submit Guess'
+        self.draw_text(text, self.height - 1, 0, 0)
 
     def draw_keyboard(self):
         wordle_bottom = self.get_wordle_start_row() + self.num_attempts + 2

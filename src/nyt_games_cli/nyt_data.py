@@ -1,5 +1,6 @@
 import requests
 import re
+import json
 from pprint import pprint
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -89,6 +90,14 @@ def load_mini_data():
         get_mini_data_from_html(content)
         browser.close()
 
+def load_connections_data():
+    date = get_date_str()
+    url = f'https://www.nytimes.com/svc/connections/v2/{date}.json'
+    res = requests.get(url)
+    jsondata = res.json()
+    global data
+    data['connections'] = jsondata
+
 def load_strands_data():
     date = get_date_str()
     url = f'https://www.nytimes.com/svc/strands/v2/{date}.json'
@@ -105,6 +114,15 @@ def load_wordle_data():
     solution = jsondata['solution']
     global data
     data['wordle'] = solution
+
+def load_spelling_bee_data():
+    url = 'https://www.nytimes.com/puzzles/spelling-bee'
+    res = requests.get(url)
+    content = re.search(r'gameData = ([^<]*)<', res.text)
+    found = content.groups()[0]
+    jsondata = json.loads(found)['today']
+    global data
+    data['spelling-bee'] = jsondata
 
 def load_letterboxed_data():
     url = 'https://nytimes.com/puzzles/letter-boxed'
@@ -137,12 +155,18 @@ def load_game_data():
     load_letterboxed_data()
     load_strands_data()
     load_mini_data()
+    load_spelling_bee_data()
+    load_connections_data()
+    load_spelling_bee_data()
     return data
 
 
 def main():
-    load_game_data()
-    pprint(data['mini'])
+    #load_game_data()
+    #load_spelling_bee_data()
+    load_connections_data()
+    global data
+    pprint(data)
 
 if __name__ == '__main__':
     main()

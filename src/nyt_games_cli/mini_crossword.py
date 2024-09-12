@@ -11,7 +11,7 @@ class Mini(Window):
         super().__init__(*args, **kwargs)
         self.set_title('Mini')
         self.done = False
-        self.current_position = [0, 1]
+        self.current_position = [0, 0]
         self.is_down = False
 
     def update_data(self, data):
@@ -54,10 +54,19 @@ class Mini(Window):
         self.guesses = [[None for i in range(self.box_size)] for x in range(self.box_size)]
         self.solved = [[None for i in range(self.box_size)] for x in range(self.box_size)]
 
+        if not self.has_letter(*self.current_position):
+            self.move_right(1)
+
     def create_mini(self):
         self.clear_page()
+        self.draw_completion_text()
         self.draw_board()
         self.draw_hints()
+        self.draw_help()
+
+    def draw_help(self):
+        text = 'A-Z: Add Letter | <Tab> Toggle Direction | <Enter> Submit Guess'
+        self.draw_text(text, self.height-1, 0, 0)
 
     def clear_page(self):
         for row in range(self.height):
@@ -137,6 +146,16 @@ class Mini(Window):
     def switch_axis(self):
         self.is_down = not self.is_down
 
+    def draw_completion_text(self):
+        if not self.done:
+            return
+
+        start_row = self.get_start_row()
+        start_col = self.get_start_col()
+
+        self.draw_text("You Win!", start_row - 2, start_col, curses.A_BOLD)
+            
+
     def draw_board(self):
         hor_gap_size = self.get_hor_gap_size()
 
@@ -156,9 +175,6 @@ class Mini(Window):
                 line = ('|' + ' ' * hor_gap_size) * self.box_size + '|'
             self.draw_text(line, start_row + r, start_col, white)
 
-
-        yellow = self.colors.get_color_id('Yellow', 'Black') | curses.A_BOLD
-        cyan = self.colors.get_color_id('Cyan', 'Black') | curses.A_BOLD
         for row_ind in range(len(self.grid_data)):
             data_row = self.grid_data[row_ind]
 
@@ -173,16 +189,21 @@ class Mini(Window):
 
                 if letter:
                     text = ' {} '.format(letter)
-                    color = white | curses.A_BOLD
+                    foreground = 'Black'
+                    background = 'White'
                     if self.current_position == [row_ind, col_ind]:
-                        color = yellow
+                        background = 'Yellow'
                     elif [row_ind, col_ind] in word_cells:
-                        color = cyan
+                        background = 'Cyan'
 
                     guess = self.guesses[row_ind][col_ind]
                     if guess:
+                        if self.solved[row_ind][col_ind]:
+                            foreground = 'Blue'
+                        color = self.colors.get_color_id(background, foreground)
                         self.draw_text(' {} '.format(guess), row, col, color)
                     else:
+                        color = self.colors.get_color_id(background, foreground)
                         self.draw_text('   '.format(guess), row, col, color)
 
                     if clue:
@@ -299,10 +320,23 @@ class Mini(Window):
     def match_color(self, one, two, changed_cell):
         mod1 = self.get_mod(*one)
         mod2 = self.get_mod(*two)
+
+        yellow = self.colors.get_color_id('Yellow', 'Black')
+        cyan = self.colors.get_color_id('Cyan', 'Black')
+
+        solved_yellow = self.colors.get_color_id('Yellow', 'Blue')
+        solved_cyan = self.colors.get_color_id('Cyan', 'Blue')
+
+        matched_colors = [yellow, cyan, solved_yellow, solved_cyan]
+
         if mod1 == mod2:
             if mod1 != None:
                 letter = self.get_letter(*changed_cell)
                 self.update_value(changed_cell[0], changed_cell[1], letter, mod1)
+        elif mod1 in matched_colors and mod2 in matched_colors:
+                letter = self.get_letter(*changed_cell)
+                self.update_value(changed_cell[0], changed_cell[1], letter, cyan)
+
 
     def get_letter(self, row, col):
         if row < len(self.data):
@@ -325,51 +359,50 @@ class Mini(Window):
             self.create_mini()
 
     def go_to_previous_letter(self):
-        pos = self.current_position
         if self.is_down:
-            if pos[0] == 0:
-                self.current_position = [pos[0], (pos[1] - 1) % self.box_size]
-            else:
-                self.current_position = [(pos[0] - 1) % self.box_size, pos[1]]
+            self.move_down(-1)
         else:
-            if pos[1] == 0:
-                self.current_position = [(pos[0] - 1) % self.box_size, self.box_size - 1]
-            else:
-                self.current_position = [pos[0], (pos[1] - 1) % self.box_size]
-
-        if not self.has_letter(*self.current_position):
-            self.go_to_previous_letter()
+            self.move_right(-1)
 
     def go_to_next_letter(self):
-        pos = self.current_position
-
         if self.is_down:
-            if pos[0] == self.box_size - 1:
-                self.current_position = [pos[0], (pos[1] + 1) % self.box_size]
-            else:
-                self.current_position = [(pos[0] + 1) % self.box_size, pos[1]]
+            self.move_down(1)
         else:
-            if pos[1] == self.box_size - 1:
-                self.current_position = [(pos[0] + 1) % self.box_size, 0]
-            else:
-                self.current_position = [pos[0], (pos[1] + 1) % self.box_size]
-
-        if not self.has_letter(*self.current_position):
-            self.go_to_next_letter()
+            self.move_right(1)
 
     def go_to_next_word(self):
         start_clue = self.get_current_clue()
         current_clue = start_clue
         while current_clue == start_clue:
-            self.go_to_next_letter()
+            if self.is_down:
+                self.move_down(1)
+            else:
+                self.move_right(1)
             current_clue = self.get_current_clue()
         self.current_position = self.get_word_start()
 
-
     def add_letter(self, letter):
         pos = self.current_position
-        self.guesses[pos[0]][pos[1]] = letter
+        if not self.solved[pos[0]][pos[1]]:
+            self.guesses[pos[0]][pos[1]] = letter
         self.go_to_next_letter()
+        self.check_if_complete()
+
+    def is_puzzle_solved(self):
+        for row in range(self.box_size):
+            for col in range(self.box_size):
+                letter = self.grid_data[row][col]['letter']
+                guess = self.guesses[row][col]
+                if letter:
+                    if guess is None:
+                        return False
+                    if letter != self.guesses[row][col]:
+                        return False
+        return True
+
+    def check_if_complete(self):
+        if self.is_puzzle_solved():
+            self.done = True
 
     def enter(self):
         self.go_to_next_word()
@@ -385,6 +418,8 @@ class Mini(Window):
         self.switch_axis()
 
     def move_right(self, amount):
+        if self.current_position not in self.horizontal_movements:
+            return
         index = self.horizontal_movements.index(self.current_position)
         new_ind = (index + amount) % len(self.horizontal_movements)
         self.current_position = self.horizontal_movements[new_ind]
@@ -393,6 +428,14 @@ class Mini(Window):
         index = self.vertical_movements.index(self.current_position)
         new_ind = (index + amount) % len(self.vertical_movements)
         self.current_position = self.vertical_movements[new_ind]
+
+    def check_puzzle(self):
+        for r in range(self.box_size):
+            for c in range(self.box_size):
+                guessed = self.guesses[r][c]
+                correct = self.grid_data[r][c]['letter']
+                if guessed == correct:
+                    self.solved[r][c] = True
 
     def accept_char(self, num):
         char = chr(num)
@@ -426,5 +469,8 @@ class Mini(Window):
 
             if char in 'abcdefghijklmnopqrstuvwxyz':
                 self.add_letter(char.upper())
+
+            if num == 63: # '?'
+                self.check_puzzle()
 
         self.refresh(self.stdscr, force=True)

@@ -10,6 +10,7 @@ from nyt_games_cli.wordle import Wordle
 from nyt_games_cli.nyt_data import load_game_data
 from nyt_games_cli.strands import Strands
 from nyt_games_cli.mini_crossword import Mini
+from nyt_games_cli.connections import Connections
 
 class NYTGames(MainWindow):
 
@@ -20,7 +21,7 @@ class NYTGames(MainWindow):
         self.add_child(self.base_layout)
 
         self.mini = Mini(colors=self.colors, defaultchar=' ', defaultattr=0)
-        self.base_layout.add_child(self.mini)
+        #self.base_layout.add_child(self.mini)
 
         self.letter_boxed = LetterBoxed(colors=self.colors, defaultchar=' ', defaultattr=0)
         #self.base_layout.add_child(self.letter_boxed)
@@ -30,6 +31,9 @@ class NYTGames(MainWindow):
 
         self.wordle = Wordle(colors=self.colors, defaultchar=' ', defaultattr=0)
         #self.base_layout.add_child(self.wordle)
+
+        self.connections = Connections(colors=self.colors, defaultchar=' ', defaultattr=0)
+        self.base_layout.add_child(self.connections)
 
         self.load()
 
@@ -44,6 +48,7 @@ class NYTGames(MainWindow):
         self.wordle.update_data(self.game_data['wordle'])
         self.strands.update_data(self.game_data['strands'])
         self.mini.update_data(self.game_data['mini'])
+        self.connections.update_data(self.game_data['connections'])
 
     def process_char(self, char):
         if char == -1:
@@ -60,6 +65,9 @@ class NYTGames(MainWindow):
             return
         if char == 52: # 4
             self.set_app_focus(self.mini)
+            return
+        if char == 53: #5
+            self.set_app_focus(self.connections)
             return
 
         self.base_layout.children[0].accept_char(char)
