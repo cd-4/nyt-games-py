@@ -79,6 +79,4 @@ class NYTGames(MainWindow):
         self.base_layout.children[0].accept_char(char)
         self.refresh(self.stdscr, force=True)
 
-if __name__ == '__main__':
-    NYTGames().loop()
 
