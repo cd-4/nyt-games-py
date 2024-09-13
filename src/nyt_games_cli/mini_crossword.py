@@ -54,8 +54,7 @@ class Mini(Window):
         self.guesses = [[None for i in range(self.box_size)] for x in range(self.box_size)]
         self.solved = [[None for i in range(self.box_size)] for x in range(self.box_size)]
 
-        if not self.has_letter(*self.current_position):
-            self.move_right(1)
+        self.current_position = self.horizontal_movements[0]
 
     def create_mini(self):
         self.clear_page()
@@ -131,7 +130,8 @@ class Mini(Window):
 
     def get_current_clue(self):
         pos = self.get_word_start()
-        return int(self.grid_data[pos[0]][pos[1]]['clue'])
+        clue = self.grid_data[pos[0]][pos[1]]['clue']
+        return int(clue)
 
     def get_word_start(self):
         pos = self.current_position

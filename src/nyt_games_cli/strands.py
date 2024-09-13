@@ -139,7 +139,7 @@ class Strands(Window):
     def draw_help(self):
         last_row = self.height - 1
         help_text_3 = 'Submit Word: <Enter> | Remove Letter: <Backspace>'
-        help_text_2 = 'Clear Word: <Ctrl+R> | Use Hint: <Ctrl+H>'
+        help_text_2 = 'Clear Word: <Ctrl+R> | Use Hint: <?>'
         help_text =   'Next Letter: <Tab> | Prev Letter: <Shift+Tab>'
         self.draw_text(help_text_3, last_row - 2, 0, 0)
         self.draw_text(help_text_2, last_row - 1, 0, 0)

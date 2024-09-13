@@ -3,14 +3,13 @@ import setproctitle
 from pycurses.mainwindow import MainWindow
 from pycurses.layout import Layout
 
-
-
 from nyt_games_cli.letterboxed import LetterBoxed
 from nyt_games_cli.wordle import Wordle
 from nyt_games_cli.nyt_data import load_game_data
 from nyt_games_cli.strands import Strands
 from nyt_games_cli.mini_crossword import Mini
 from nyt_games_cli.connections import Connections
+from nyt_games_cli.spelling_bee import SpellingBee
 
 class NYTGames(MainWindow):
 
@@ -30,10 +29,13 @@ class NYTGames(MainWindow):
         #self.base_layout.add_child(self.strands)
 
         self.wordle = Wordle(colors=self.colors, defaultchar=' ', defaultattr=0)
-        #self.base_layout.add_child(self.wordle)
+        self.base_layout.add_child(self.wordle)
 
         self.connections = Connections(colors=self.colors, defaultchar=' ', defaultattr=0)
-        self.base_layout.add_child(self.connections)
+        #self.base_layout.add_child(self.connections)
+
+        self.spelling_bee = SpellingBee(colors=self.colors, defaultchar=' ', defaultattr=0)
+        #self.base_layout.add_child(self.spelling_bee)
 
         self.load()
 
@@ -49,6 +51,7 @@ class NYTGames(MainWindow):
         self.strands.update_data(self.game_data['strands'])
         self.mini.update_data(self.game_data['mini'])
         self.connections.update_data(self.game_data['connections'])
+        self.spelling_bee.update_data(self.game_data['spelling-bee'])
 
     def process_char(self, char):
         if char == -1:
@@ -58,16 +61,19 @@ class NYTGames(MainWindow):
             self.set_app_focus(self.wordle)
             return
         if char == 50: # 2
-            self.set_app_focus(self.strands)
+            self.set_app_focus(self.connections)
             return
         if char == 51: # 3
-            self.set_app_focus(self.letter_boxed)
+            self.set_app_focus(self.strands)
             return
         if char == 52: # 4
             self.set_app_focus(self.mini)
             return
         if char == 53: #5
-            self.set_app_focus(self.connections)
+            self.set_app_focus(self.letter_boxed)
+            return
+        if char == 54: #6
+            self.set_app_focus(self.spelling_bee)
             return
 
         self.base_layout.children[0].accept_char(char)

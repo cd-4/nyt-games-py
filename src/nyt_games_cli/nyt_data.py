@@ -163,8 +163,8 @@ def load_game_data():
 
 def main():
     #load_game_data()
-    #load_spelling_bee_data()
-    load_connections_data()
+    load_spelling_bee_data()
+    #load_connections_data()
     global data
     pprint(data)
 
