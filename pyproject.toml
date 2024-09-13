@@ -1,0 +1,16 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "nyt-games-cli"
+authors = [{name = "Charlie Dudzik", email = "dudzikc@outlook.com"}]
+readme = "ReadMe.md"
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+dependencies = [
+    "pycurses<1.0.0",
+    "playwright>=1.47,<4.0.0"
+]
+
