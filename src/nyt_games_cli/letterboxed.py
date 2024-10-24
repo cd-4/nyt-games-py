@@ -111,6 +111,9 @@ class LetterBoxed(Window):
 
     def calc_box_height(self):
         self.box_height = min([self.height - 7, 25])
+        max_height = 17
+        if self.box_height > max_height:
+            self.box_height = max_height
         self.box_width = min([self.box_height * 2, 50])
 
     def get_box_corners(self):
