@@ -461,7 +461,7 @@ class Mini(Window):
             if num == 9: # Tab
                 self.tab()
 
-            if num == 127: # Backspace
+            if num == curses.KEY_BACKSPACE:
                 self.backspace()
 
             if num == 10:

@@ -271,7 +271,7 @@ class Connections(Window):
         if num == 18:
             self.shuffle()
 
-        if num == 127:
+        if num == curses.KEY_BACKSPACE:
             self.backspace()
 
         self.refresh(self.stdscr, force=True)

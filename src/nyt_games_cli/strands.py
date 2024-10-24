@@ -1,4 +1,5 @@
 import random
+import curses
 
 from pycurses.window import Window
 
@@ -421,7 +422,7 @@ class Strands(Window):
             if num == 9:
                 self.tab()
 
-            if num == 127:
+            if num == curses.KEY_BACKSPACE:
                 self.backspace()
 
             if num == 10:

@@ -300,7 +300,7 @@ class LetterBoxed(Window):
             if char in self.letter_data:
                 self.try_update_current_word(char)
 
-            if num == 127:
+            if num == curses.KEY_BACKSPACE:
                 self.backspace()
 
             if num == 10:

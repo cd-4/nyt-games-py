@@ -242,7 +242,7 @@ class Wordle(Window):
         char = chr(num).upper()
 
         if not self.done:
-            if num == 127:
+            if num == curses.KEY_BACKSPACE:
                 self.backspace()
 
             if num == 10:

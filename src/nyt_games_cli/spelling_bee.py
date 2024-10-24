@@ -185,7 +185,7 @@ class SpellingBee(Window):
                 #self.clear_selection()
                 self.shuffle_letters()
 
-            if num == 127:
+            if num == curses.KEY_BACKSPACE:
                 self.backspace()
 
             if num == 10:
