@@ -1,5 +1,9 @@
 # NYT Games CLI
 
+## 📢 Do you want to play the NYT daily games at work?
+
+## 📢 Do you not want to be seen on your phone at your desk?
+
 Play the New York Times daily word games from an interactive command-line
 interface. The application downloads the current puzzles when it starts and
 uses number keys to switch between games.
