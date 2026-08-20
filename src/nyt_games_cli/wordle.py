@@ -200,8 +200,8 @@ class Wordle(Window):
         if letter in self.close_letters:
             return self.colors.get_color_id('Yellow', 'Black') | curses.A_BOLD
         if letter in self.guessed_letters:
-            return 0
-        return curses.A_BOLD
+            return self.colors.get_color_id('Black', 'White') | curses.A_DIM
+        return self.colors.get_color_id('Black', 'White') | curses.A_BOLD
 
     def get_colors(self, word):
         colors = [0 for i in range(self.word_size)]
@@ -209,8 +209,8 @@ class Wordle(Window):
         word_letters = [l for l in word]
         target_letters = [l for l in self.solution]
 
-        match_color = self.colors.get_color_id('Green', 'Black')
-        close_color = self.colors.get_color_id('Yellow', 'Black')
+        match_color = self.colors.get_color_id('Green', 'White') | curses.A_BOLD
+        close_color = self.colors.get_color_id('Yellow', 'White') | curses.A_BOLD
 
         result = [0] * self.word_size
 

@@ -234,13 +234,27 @@ class PuzzleDataTests(unittest.TestCase):
 
     def test_wordle_keyboard_fades_absent_letters(self):
         game = object.__new__(Wordle)
-        game.colors = FakeColors()
+        game.colors = MagicMock()
+        game.colors.get_color_id.return_value = 64
         game.found_letters = []
         game.close_letters = []
         game.guessed_letters = ['X']
 
-        self.assertEqual(game.get_keyboard_mod('X'), 0)
-        self.assertEqual(game.get_keyboard_mod('Q'), curses.A_BOLD)
+        self.assertEqual(game.get_keyboard_mod('X'), 64 | curses.A_DIM)
+        self.assertEqual(game.get_keyboard_mod('Q'), 64 | curses.A_BOLD)
+
+    def test_wordle_colored_keys_use_black_text(self):
+        game = object.__new__(Wordle)
+        game.colors = MagicMock()
+        game.colors.get_color_id.return_value = 64
+        game.found_letters = ['G']
+        game.close_letters = ['Y']
+        game.guessed_letters = []
+
+        game.get_keyboard_mod('G')
+        game.colors.get_color_id.assert_called_with('Green', 'Black')
+        game.get_keyboard_mod('Y')
+        game.colors.get_color_id.assert_called_with('Yellow', 'Black')
 
     def test_wordle_submits_with_all_common_enter_codes(self):
         for enter_code in (10, 13, 343):
