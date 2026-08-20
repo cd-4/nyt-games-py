@@ -14,7 +14,7 @@ WORD_LIST_URL = (
 )
 REQUEST_HEADERS = {'User-Agent': 'nyt-games-cli'}
 REQUEST_TIMEOUT = 20
-WORDLE_BRIGHT_WHITE_PAIRS = {'Green': 65, 'Yellow': 66}
+WORDLE_DEFAULT_FOREGROUND_PAIRS = {'Green': 65, 'Yellow': 66}
 
 class Wordle(Window):
 
@@ -205,19 +205,17 @@ class Wordle(Window):
         return self.colors.get_color_id('Black', 'White') | curses.A_BOLD
 
     def get_bold_white_mod(self, background):
-        """Use explicit bright white instead of terminal-dependent ANSI white."""
+        """Use the same terminal-default foreground as uncolored guesses."""
         fallback = self.colors.get_color_id(background, 'White') | curses.A_BOLD
-        pair_number = WORDLE_BRIGHT_WHITE_PAIRS[background]
+        pair_number = WORDLE_DEFAULT_FOREGROUND_PAIRS[background]
         background_color = {
             'Green': curses.COLOR_GREEN,
             'Yellow': curses.COLOR_YELLOW,
         }[background]
-        if (
-            getattr(curses, 'COLORS', 0) >= 256
-            and getattr(curses, 'COLOR_PAIRS', 0) > pair_number
-        ):
+        if getattr(curses, 'COLOR_PAIRS', 0) > pair_number:
             try:
-                curses.init_pair(pair_number, 15, background_color)
+                curses.use_default_colors()
+                curses.init_pair(pair_number, -1, background_color)
                 return curses.color_pair(pair_number) | curses.A_BOLD
             except curses.error:
                 pass
