@@ -201,8 +201,8 @@ class Wordle(Window):
         if letter in self.close_letters:
             return self.get_bold_white_mod('Yellow')
         if letter in self.guessed_letters:
-            return self.colors.get_color_id('Black', 'White') | curses.A_DIM
-        return self.colors.get_color_id('Black', 'White') | curses.A_BOLD
+            return curses.A_DIM
+        return curses.A_BOLD
 
     def get_bold_white_mod(self, background):
         """Use the same terminal-default foreground as uncolored guesses."""

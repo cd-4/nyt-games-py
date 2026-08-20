@@ -240,8 +240,8 @@ class PuzzleDataTests(unittest.TestCase):
         game.close_letters = []
         game.guessed_letters = ['X']
 
-        self.assertEqual(game.get_keyboard_mod('X'), 64 | curses.A_DIM)
-        self.assertEqual(game.get_keyboard_mod('Q'), 64 | curses.A_BOLD)
+        self.assertEqual(game.get_keyboard_mod('X'), curses.A_DIM)
+        self.assertEqual(game.get_keyboard_mod('Q'), curses.A_BOLD)
 
     def test_wordle_colored_keys_use_bold_white_text(self):
         game = object.__new__(Wordle)
