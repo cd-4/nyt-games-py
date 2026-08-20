@@ -4,6 +4,15 @@ from pycurses.window import Window
 
 from nyt_games_cli import utils
 
+
+SHIFT_VIM_MOVEMENTS = {
+    'H': ('horizontal', -1),
+    'J': ('vertical', 1),
+    'K': ('vertical', -1),
+    'L': ('horizontal', 1),
+}
+
+
 class Mini(Window):
 
     def __init__(self, *args, **kwargs):
@@ -64,8 +73,15 @@ class Mini(Window):
         self.draw_help()
 
     def draw_help(self):
-        text = 'A-Z: Add Letter | <Tab> Toggle Direction | <Enter> Submit Guess'
-        self.draw_text(text, self.height-1, 0, 0)
+        lines = (
+            'A-Z: Letter | Tab: Direction | Enter/]: Next | [: Previous',
+            'Arrow Keys or Shift-H/J/K/L: Move',
+        )
+        for offset, text in enumerate(lines):
+            start_col = max(0, (self.width - len(text)) // 2)
+            self.draw_text(
+                text[:self.width], self.height - 2 + offset, start_col, 0
+            )
 
     def clear_page(self):
         for row in range(self.height):
@@ -113,10 +129,13 @@ class Mini(Window):
         return []
 
     def get_start_col(self):
-        return 3
+        return max(0, (self.width - self.get_grid_total_width()) // 2)
 
     def get_start_row(self):
-        return 3
+        content_height = (
+            self.get_grid_total_height() + 1 + self.get_hints_height()
+        )
+        return max(1, (self.height - 1 - content_height) // 2)
 
     def get_hor_gap_size(self):
         return 3
@@ -127,6 +146,12 @@ class Mini(Window):
 
     def get_grid_total_height(self):
         return self.box_size * 2 + 1
+
+    def get_hints_height(self):
+        return max(
+            (len(direction_clues) + 1 for direction_clues in self.clues.values()),
+            default=0,
+        )
 
     def get_current_clue(self):
         pos = self.get_word_start()
@@ -272,28 +297,44 @@ class Mini(Window):
     def draw_hints(self):
         total_height = self.get_grid_total_height()
 
-        start_col = self.get_start_col()
         start_row = self.get_start_row()
 
         current_clue = self.get_current_clue()
-
-        current_row = start_row + total_height + 1
-        for direction in self.clues:
-            self.draw_text(direction + ':', current_row, start_col, curses.A_BOLD)
-            current_row += 1
-
-            for number in self.clues[direction]:
-                clue_text = self.clues[direction][number]
+        clue_columns = []
+        for direction, direction_clues in self.clues.items():
+            lines = [(direction + ':', curses.A_BOLD)]
+            for number, clue_text in direction_clues.items():
                 text = f'  {number}: {clue_text}'
-                mod = 0
-                if int(number) == current_clue:
-                    if self.is_down and direction == 'Down':
-                        mod = curses.A_BOLD
-                    elif not self.is_down and direction == 'Across':
-                        mod = curses.A_BOLD
-                self.draw_text(text, current_row, start_col, mod)
-                current_row += 1
-            current_row += 1
+                is_active = (
+                    int(number) == current_clue
+                    and self.is_down == (direction == 'Down')
+                )
+                if is_active:
+                    mod = (
+                        self.colors.get_color_id('Cyan', 'Black')
+                        | curses.A_BOLD
+                    )
+                else:
+                    mod = 0
+                lines.append((text, mod))
+            clue_columns.append(lines)
+
+        column_widths = [
+            max((len(text) for text, _ in lines), default=0)
+            for lines in clue_columns
+        ]
+        total_width = sum(column_widths) + max(0, len(clue_columns) - 1) * 4
+        column_start = max(0, (self.width - total_width) // 2)
+        hint_row = start_row + total_height + 1
+        for lines, width in zip(clue_columns, column_widths):
+            for row_offset, (text, mod) in enumerate(lines):
+                self.draw_text(
+                    text[:max(0, self.width - column_start)],
+                    hint_row + row_offset,
+                    column_start,
+                    mod,
+                )
+            column_start += width + 4
 
 
     def match_corner(self, corner):
@@ -370,16 +411,31 @@ class Mini(Window):
         else:
             self.move_right(1)
 
+    def get_word_starts(self):
+        movements = (
+            self.vertical_movements if self.is_down else self.horizontal_movements
+        )
+        starts = []
+        for position in movements:
+            row, col = position
+            previous = [row - 1, col] if self.is_down else [row, col - 1]
+            if not self.has_letter(*previous):
+                starts.append(position)
+        return starts
+
+    def move_word(self, amount):
+        starts = self.get_word_starts()
+        if not starts:
+            return
+        current_start = self.get_word_start()
+        current_index = starts.index(current_start)
+        self.current_position = starts[(current_index + amount) % len(starts)]
+
     def go_to_next_word(self):
-        start_clue = self.get_current_clue()
-        current_clue = start_clue
-        while current_clue == start_clue:
-            if self.is_down:
-                self.move_down(1)
-            else:
-                self.move_right(1)
-            current_clue = self.get_current_clue()
-        self.current_position = self.get_word_start()
+        self.move_word(1)
+
+    def go_to_previous_word(self):
+        self.move_word(-1)
 
     def add_letter(self, letter):
         pos = self.current_position
@@ -442,6 +498,15 @@ class Mini(Window):
 
         if not self.done:
 
+            if char in SHIFT_VIM_MOVEMENTS:
+                axis, amount = SHIFT_VIM_MOVEMENTS[char]
+                if axis == 'vertical':
+                    self.move_down(amount)
+                else:
+                    self.move_right(amount)
+                self.refresh(self.stdscr, force=True)
+                return
+
             if num == 258 or char == 'S': # Down Arrow
                 self.move_down(1)
             if num == 259 or char == 'W': # Up Arrow
@@ -464,7 +529,13 @@ class Mini(Window):
             if num == curses.KEY_BACKSPACE:
                 self.backspace()
 
-            if num == 10:
+            if char == '[':
+                self.go_to_previous_word()
+
+            elif char == ']':
+                self.go_to_next_word()
+
+            elif num in (curses.KEY_ENTER, 10, 13):
                 self.enter()
 
             if char in 'abcdefghijklmnopqrstuvwxyz':

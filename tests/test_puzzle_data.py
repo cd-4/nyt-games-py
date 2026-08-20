@@ -1,3 +1,4 @@
+import curses
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -17,6 +18,100 @@ class FakeColors:
 
 
 class PuzzleDataTests(unittest.TestCase):
+    @staticmethod
+    def make_mini(size=3):
+        game = object.__new__(Mini)
+        game.box_size = size
+        game.grid_data = [
+            [
+                {'letter': chr(65 + (row * size + col) % 26),
+                 'clue': row * size + col + 1, 'found': False}
+                for col in range(size)
+            ]
+            for row in range(size)
+        ]
+        game.horizontal_movements = [
+            [row, col] for row in range(size) for col in range(size)
+        ]
+        game.vertical_movements = [
+            [row, col] for col in range(size) for row in range(size)
+        ]
+        game.current_position = [0, 0]
+        game.is_down = False
+        game.done = False
+        game.guesses = [[None] * size for _ in range(size)]
+        game.solved = [[None] * size for _ in range(size)]
+        game.clues = {
+            'Across': {str(row * size + 1): f'Across {row}' for row in range(size)},
+            'Down': {str(col + 1): f'Down {col}' for col in range(size)},
+        }
+        game.width = 80
+        game.height = 30
+        game.colors = FakeColors()
+        game.stdscr = None
+        game.refresh = lambda *args, **kwargs: None
+        return game
+
+    def test_mini_is_centered(self):
+        game = self.make_mini(size=5)
+
+        self.assertEqual(
+            game.get_start_col(),
+            (game.width - game.get_grid_total_width()) // 2,
+        )
+        content_height = (
+            game.get_grid_total_height() + 1 + game.get_hints_height()
+        )
+        self.assertEqual(
+            game.get_start_row(),
+            (game.height - 1 - content_height) // 2,
+        )
+
+    def test_mini_shift_vim_navigation(self):
+        game = self.make_mini()
+        game.current_position = [1, 1]
+
+        game.accept_char(ord('H'))
+        self.assertEqual(game.current_position, [1, 0])
+        game.accept_char(ord('J'))
+        self.assertEqual(game.current_position, [2, 0])
+        game.accept_char(ord('L'))
+        self.assertEqual(game.current_position, [2, 1])
+        game.accept_char(ord('K'))
+        self.assertEqual(game.current_position, [1, 1])
+
+    def test_mini_brackets_move_between_clues(self):
+        game = self.make_mini()
+        game.current_position = [1, 0]
+
+        game.accept_char(ord('['))
+
+        self.assertEqual(game.current_position, [0, 0])
+        game.accept_char(ord(']'))
+        self.assertEqual(game.current_position, [1, 0])
+
+    def test_mini_enter_moves_to_next_clue(self):
+        for enter_code in (10, 13, curses.KEY_ENTER):
+            game = self.make_mini()
+            game.current_position = [0, 0]
+
+            game.accept_char(enter_code)
+
+            self.assertEqual(game.current_position, [1, 0])
+
+    def test_mini_highlights_active_clue(self):
+        game = self.make_mini()
+        game.colors.get_color_id = lambda *args: 64
+        drawn = []
+        game.draw_text = lambda text, row, col, mod: drawn.append((text, mod))
+
+        game.draw_hints()
+
+        active = [mod for text, mod in drawn if text == '  1: Across 0']
+        inactive = [mod for text, mod in drawn if text == '  1: Down 0']
+        self.assertEqual(active, [64 | curses.A_BOLD])
+        self.assertEqual(inactive, [0])
+
     @patch.object(__main__.curses, 'endwin')
     @patch.object(__main__.curses, 'nl')
     @patch.object(__main__.curses, 'nocbreak')
