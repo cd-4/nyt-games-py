@@ -1,6 +1,6 @@
 import curses
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from nyt_games_cli.connections import Connections
 from nyt_games_cli.letterboxed import LetterBoxed
@@ -243,7 +243,7 @@ class PuzzleDataTests(unittest.TestCase):
         self.assertEqual(game.get_keyboard_mod('X'), 64 | curses.A_DIM)
         self.assertEqual(game.get_keyboard_mod('Q'), 64 | curses.A_BOLD)
 
-    def test_wordle_colored_keys_use_black_text(self):
+    def test_wordle_colored_keys_use_bold_white_text(self):
         game = object.__new__(Wordle)
         game.colors = MagicMock()
         game.colors.get_color_id.return_value = 64
@@ -252,9 +252,31 @@ class PuzzleDataTests(unittest.TestCase):
         game.guessed_letters = []
 
         game.get_keyboard_mod('G')
-        game.colors.get_color_id.assert_called_with('Green', 'Black')
+        game.colors.get_color_id.assert_called_with('Green', 'White')
         game.get_keyboard_mod('Y')
-        game.colors.get_color_id.assert_called_with('Yellow', 'Black')
+        game.colors.get_color_id.assert_called_with('Yellow', 'White')
+        self.assertEqual(game.get_keyboard_mod('G'), 64 | curses.A_BOLD)
+        self.assertEqual(game.get_keyboard_mod('Y'), 64 | curses.A_BOLD)
+
+    def test_wordle_colored_cells_use_bold_white_text(self):
+        game = object.__new__(Wordle)
+        game.colors = MagicMock()
+        game.colors.get_color_id.side_effect = lambda background, foreground: {
+            'Green': 64,
+            'Yellow': 128,
+        }[background]
+        game.solution = 'AECXY'
+        game.word_size = 5
+        game.found_letters = []
+        game.close_letters = []
+        game.guessed_letters = []
+
+        mods = game.get_colors('ABCDE')
+
+        self.assertEqual(mods[0], 64 | curses.A_BOLD)
+        self.assertEqual(mods[4], 128 | curses.A_BOLD)
+        self.assertIn(call('Green', 'White'), game.colors.get_color_id.call_args_list)
+        self.assertIn(call('Yellow', 'White'), game.colors.get_color_id.call_args_list)
 
     def test_wordle_submits_with_all_common_enter_codes(self):
         for enter_code in (10, 13, 343):

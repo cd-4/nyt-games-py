@@ -196,9 +196,9 @@ class Wordle(Window):
 
     def get_keyboard_mod(self, letter):
         if letter in self.found_letters:
-            return self.colors.get_color_id('Green', 'Black') | curses.A_BOLD
+            return self.colors.get_color_id('Green', 'White') | curses.A_BOLD
         if letter in self.close_letters:
-            return self.colors.get_color_id('Yellow', 'Black') | curses.A_BOLD
+            return self.colors.get_color_id('Yellow', 'White') | curses.A_BOLD
         if letter in self.guessed_letters:
             return self.colors.get_color_id('Black', 'White') | curses.A_DIM
         return self.colors.get_color_id('Black', 'White') | curses.A_BOLD
