@@ -181,13 +181,7 @@ class Wordle(Window):
                 row = row_start
                 col = start_col + i*2
                 letter = letters[i]
-                mod = 0
-                if letter in self.found_letters:
-                    mod = self.colors.get_color_id('Green', 'Black') | curses.A_BOLD
-                elif letter in self.close_letters:
-                    mod = self.colors.get_color_id('Yellow', 'Black') | curses.A_BOLD
-                elif letter in self.guessed_letters:
-                    mod = curses.A_BOLD
+                mod = self.get_keyboard_mod(letter)
                 self.update_value(row, col, letter, mod)
 
         draw_key_row(top_row)
@@ -199,6 +193,15 @@ class Wordle(Window):
         start_col += 1
         row_start += 1
         draw_key_row(bottom_row)
+
+    def get_keyboard_mod(self, letter):
+        if letter in self.found_letters:
+            return self.colors.get_color_id('Green', 'Black') | curses.A_BOLD
+        if letter in self.close_letters:
+            return self.colors.get_color_id('Yellow', 'Black') | curses.A_BOLD
+        if letter in self.guessed_letters:
+            return 0
+        return curses.A_BOLD
 
     def get_colors(self, word):
         colors = [0 for i in range(self.word_size)]

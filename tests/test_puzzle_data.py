@@ -232,6 +232,16 @@ class PuzzleDataTests(unittest.TestCase):
             Wordle.parse_word_list('404: NOT FOUND')
         ))
 
+    def test_wordle_keyboard_fades_absent_letters(self):
+        game = object.__new__(Wordle)
+        game.colors = FakeColors()
+        game.found_letters = []
+        game.close_letters = []
+        game.guessed_letters = ['X']
+
+        self.assertEqual(game.get_keyboard_mod('X'), 0)
+        self.assertEqual(game.get_keyboard_mod('Q'), curses.A_BOLD)
+
     def test_wordle_submits_with_all_common_enter_codes(self):
         for enter_code in (10, 13, 343):
             game = object.__new__(Wordle)
