@@ -258,6 +258,24 @@ class PuzzleDataTests(unittest.TestCase):
         self.assertEqual(game.get_keyboard_mod('G'), 64 | curses.A_BOLD)
         self.assertEqual(game.get_keyboard_mod('Y'), 64 | curses.A_BOLD)
 
+    @patch.object(curses, 'color_pair', return_value=128)
+    @patch.object(curses, 'init_pair')
+    def test_wordle_uses_explicit_bright_white_when_supported(
+        self, init_pair, color_pair
+    ):
+        game = object.__new__(Wordle)
+        game.colors = MagicMock()
+        game.colors.get_color_id.return_value = 64
+
+        with patch.object(curses, 'COLORS', 256, create=True), patch.object(
+            curses, 'COLOR_PAIRS', 256, create=True
+        ):
+            mod = game.get_bold_white_mod('Green')
+
+        init_pair.assert_called_once_with(65, 15, curses.COLOR_GREEN)
+        color_pair.assert_called_once_with(65)
+        self.assertEqual(mod, 128 | curses.A_BOLD)
+
     def test_wordle_colored_cells_use_bold_white_text(self):
         game = object.__new__(Wordle)
         game.colors = MagicMock()

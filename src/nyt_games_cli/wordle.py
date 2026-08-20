@@ -14,6 +14,7 @@ WORD_LIST_URL = (
 )
 REQUEST_HEADERS = {'User-Agent': 'nyt-games-cli'}
 REQUEST_TIMEOUT = 20
+WORDLE_BRIGHT_WHITE_PAIRS = {'Green': 65, 'Yellow': 66}
 
 class Wordle(Window):
 
@@ -196,12 +197,31 @@ class Wordle(Window):
 
     def get_keyboard_mod(self, letter):
         if letter in self.found_letters:
-            return self.colors.get_color_id('Green', 'White') | curses.A_BOLD
+            return self.get_bold_white_mod('Green')
         if letter in self.close_letters:
-            return self.colors.get_color_id('Yellow', 'White') | curses.A_BOLD
+            return self.get_bold_white_mod('Yellow')
         if letter in self.guessed_letters:
             return self.colors.get_color_id('Black', 'White') | curses.A_DIM
         return self.colors.get_color_id('Black', 'White') | curses.A_BOLD
+
+    def get_bold_white_mod(self, background):
+        """Use explicit bright white instead of terminal-dependent ANSI white."""
+        fallback = self.colors.get_color_id(background, 'White') | curses.A_BOLD
+        pair_number = WORDLE_BRIGHT_WHITE_PAIRS[background]
+        background_color = {
+            'Green': curses.COLOR_GREEN,
+            'Yellow': curses.COLOR_YELLOW,
+        }[background]
+        if (
+            getattr(curses, 'COLORS', 0) >= 256
+            and getattr(curses, 'COLOR_PAIRS', 0) > pair_number
+        ):
+            try:
+                curses.init_pair(pair_number, 15, background_color)
+                return curses.color_pair(pair_number) | curses.A_BOLD
+            except curses.error:
+                pass
+        return fallback
 
     def get_colors(self, word):
         colors = [0 for i in range(self.word_size)]
@@ -209,8 +229,8 @@ class Wordle(Window):
         word_letters = [l for l in word]
         target_letters = [l for l in self.solution]
 
-        match_color = self.colors.get_color_id('Green', 'White') | curses.A_BOLD
-        close_color = self.colors.get_color_id('Yellow', 'White') | curses.A_BOLD
+        match_color = self.get_bold_white_mod('Green')
+        close_color = self.get_bold_white_mod('Yellow')
 
         result = [0] * self.word_size
 
