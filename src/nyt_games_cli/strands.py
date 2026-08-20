@@ -272,36 +272,69 @@ class Strands(Window):
         return output
 
     def add_letter(self, letter):
-        letter_positions = self.find_letter_instances(letter)
-        if not letter_positions:
-            return
+        letters = ''.join(item[0] for item in self.current_word) + letter
+        path = self.find_word_path(letters)
+        if path is not None:
+            self.current_word = [
+                [word_letter, position]
+                for word_letter, position in zip(letters, path)
+            ]
 
-        if not self.current_word:
+    def find_word_path(self, letters):
+        """Find an unused adjacent-cell path, preferring the current selection."""
+        if not letters:
+            return []
 
-            found_letters = self.get_all_found_letter_positions()
-            for pos in letter_positions:
-                if pos not in found_letters:
-                    self.current_word = [[letter, pos]]
-                    return
-            self.current_word = [[letter, unmatched_positions[0]]]
+        board = self.get_board_data()
+        unavailable = self.tupleset(self.get_all_found_letter_positions())
 
-        else:
+        def prefer_current(positions, index):
+            if index >= len(self.current_word):
+                return positions
+            preferred = self.current_word[index][1]
+            return sorted(positions, key=lambda position: position != preferred)
 
-            nearby = self.get_nearby_cells()
-            current_selected = [x[1] for x in self.current_word]
-            nearby = [n for n in nearby if n not in current_selected]
-            if not nearby:
-                return
-            board = self.get_board_data()
-            valid_nearby = [n for n in nearby if board[n[0]][n[1]] == letter]
-            if not valid_nearby:
-                return
-            all_found_positions = self.get_all_found_letter_positions()
-            cleaned_positions = [v for v in valid_nearby if v not in all_found_positions]
-            if not cleaned_positions:
-                self.current_word.append([letter, valid_nearby[0]])
-            else:
-                return self.current_word.append([letter, cleaned_positions[0]])
+        def matching_neighbors(position, letter, used, index):
+            row, col = position
+            matches = []
+            for row_offset in range(-1, 2):
+                for col_offset in range(-1, 2):
+                    if row_offset == 0 and col_offset == 0:
+                        continue
+                    candidate = [row + row_offset, col + col_offset]
+                    candidate_tuple = tuple(candidate)
+                    if candidate_tuple in used or candidate_tuple in unavailable:
+                        continue
+                    if not (0 <= candidate[0] < self.grid_height):
+                        continue
+                    if not (0 <= candidate[1] < self.grid_width):
+                        continue
+                    if board[candidate[0]][candidate[1]] == letter:
+                        matches.append(candidate)
+            return prefer_current(matches, index)
+
+        def search(path, index):
+            if index == len(letters):
+                return path
+            used = self.tupleset(path)
+            for candidate in matching_neighbors(
+                path[-1], letters[index], used, index
+            ):
+                result = search(path + [candidate], index + 1)
+                if result is not None:
+                    return result
+            return None
+
+        starts = [
+            position
+            for position in self.find_letter_instances(letters[0])
+            if tuple(position) not in unavailable
+        ]
+        for start in prefer_current(starts, 0):
+            result = search([start], 1)
+            if result is not None:
+                return result
+        return None
 
     def tupleset(self, cell_list):
         return set([(c[0], c[1]) for c in cell_list])

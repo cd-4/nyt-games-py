@@ -252,6 +252,13 @@ class LetterBoxed(Window):
             return ''
 
     def try_update_current_word(self, letter):
+        if not self.current_word and self.words:
+            required_letter = self.words[-1][-1]
+            if letter.upper() != required_letter.upper():
+                return
+            self.current_word = letter
+            return
+
         last_letter = self.get_last_letter()
         if last_letter:
             for side in self.sides:
@@ -273,13 +280,14 @@ class LetterBoxed(Window):
             return
 
         self.words.append(word)
-        self.current_word = word[-1]
+        self.current_word = ''
 
         self.check_completion()
 
     def restart(self):
         self.current_word = ""
         self.words = []
+        self.done = False
 
     def is_letter_seen(self, letter):
         for word in self.words:

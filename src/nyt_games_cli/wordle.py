@@ -1,12 +1,19 @@
 import os
 import requests
 import curses
-import time
 
 from pycurses.window import Window
-from pycurses import lines
 
 from nyt_games_cli import utils
+
+
+WORD_LIST_URL = (
+    'https://gist.githubusercontent.com/cfreshman/'
+    '8b92bc418b43096094cf5d1b0eea8f84/raw/'
+    'nyt-wordle-allowed-guesses-2026-03-06.txt'
+)
+REQUEST_HEADERS = {'User-Agent': 'nyt-games-cli'}
+REQUEST_TIMEOUT = 20
 
 class Wordle(Window):
 
@@ -16,6 +23,7 @@ class Wordle(Window):
         self.words = []
         self.valid_words = self.get_valid_words()
         self.current_word = ''
+        self.message = ''
         self.num_attempts = 6
         self.word_size = 5
         super().__init__(*args, **kwargs)
@@ -26,20 +34,40 @@ class Wordle(Window):
         self.guessed_letters = []
 
     def get_valid_words(self):
-
         data_dir = utils.get_app_data_dir('wordle')
         word_file = os.path.join(data_dir, 'words.txt')
-        if not os.path.exists(word_file):
-            url = 'https://gist.githubusercontent.com/cfreshman/d97dbe7004522f7bc52ed2a6e22e2c04/raw/633058e11743065ad2822e1d2e6505682a01a9e6/wordle-nyt-words-14855.txt'
-            res = requests.get(url)
-            text = res.text.upper()
-            with open(word_file, 'w+') as f:
-                f.write(text)
-            return text.split('\n')
 
-        with open(word_file, 'r') as f:
-            words = f.read()
-        return words.split('\n')
+        if os.path.exists(word_file):
+            with open(word_file, 'r') as file:
+                words = self.parse_word_list(file.read())
+            if self.is_valid_word_list(words):
+                return words
+
+        response = requests.get(
+            WORD_LIST_URL,
+            headers=REQUEST_HEADERS,
+            timeout=REQUEST_TIMEOUT,
+        )
+        response.raise_for_status()
+        words = self.parse_word_list(response.text)
+        if not self.is_valid_word_list(words):
+            raise ValueError('Downloaded Wordle dictionary is invalid')
+
+        with open(word_file, 'w') as file:
+            file.write('\n'.join(sorted(words)) + '\n')
+        return words
+
+    @staticmethod
+    def parse_word_list(text):
+        return {
+            word.strip().upper()
+            for word in text.splitlines()
+            if len(word.strip()) == 5 and word.strip().isalpha()
+        }
+
+    @staticmethod
+    def is_valid_word_list(words):
+        return len(words) >= 1000
 
     def is_valid_word(self, word):
         is_valid = word in self.valid_words
@@ -47,6 +75,7 @@ class Wordle(Window):
 
     def update_data(self, data):
         self.solution = data.upper()
+        self.valid_words.add(self.solution)
 
     def create_wordle(self):
         self.clear_page()
@@ -130,6 +159,8 @@ class Wordle(Window):
     def draw_help(self):
         text = 'A-Z: Add Letter | <Enter> Submit Guess'
         self.draw_text(text, self.height - 1, 0, 0)
+        if self.message:
+            self.draw_text(self.message, self.height - 2, 0, curses.A_BOLD)
 
     def draw_keyboard(self):
         wordle_bottom = self.get_wordle_start_row() + self.num_attempts + 2
@@ -214,13 +245,18 @@ class Wordle(Window):
     def add_letter(self, letter):
         if len(self.current_word) < 5:
             self.current_word += letter
+            self.message = ''
 
     def enter(self):
         if len(self.current_word) != 5:
+            self.message = 'Guess must be five letters'
             return
         
         if not self.is_valid_word(self.current_word):
+            self.message = 'Not in word list'
             return
+
+        self.message = ''
 
         if self.current_word == self.solution:
             self.words.append(self.current_word)
@@ -237,15 +273,16 @@ class Wordle(Window):
     def backspace(self):
         if self.current_word:
             self.current_word = self.current_word[:-1]
+        self.message = ''
 
     def accept_char(self, num):
         char = chr(num).upper()
 
         if not self.done:
-            if num == curses.KEY_BACKSPACE:
+            if num in (curses.KEY_BACKSPACE, 8, 127):
                 self.backspace()
 
-            if num == 10:
+            if num in (curses.KEY_ENTER, 10, 13):
                 self.enter()
 
             if char in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
