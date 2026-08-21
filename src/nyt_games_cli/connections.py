@@ -80,7 +80,7 @@ class Connections(Window):
         self.draw_text(text, start_row - 3, start_col, curses.A_BOLD)
 
     def draw_help(self):
-        text = 'A-P: Toggle Cards | <Enter> Confirm Guess'
+        text = 'A-P: Toggle Cards | <Enter> Confirm Guess | R: Shuffle Unsolved'
         self.draw_text(text, self.height - 1, 0, 0)
 
     def draw_close(self):
@@ -267,8 +267,7 @@ class Connections(Window):
         if num == 10:
             self.enter()
 
-        # CTRL + R
-        if num == 18:
+        if char == 'R' or num == 18:
             self.shuffle()
 
         if num == curses.KEY_BACKSPACE:

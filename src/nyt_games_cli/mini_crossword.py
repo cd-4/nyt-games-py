@@ -1,5 +1,6 @@
 import math
 import curses
+import textwrap
 from pycurses.window import Window
 
 from nyt_games_cli import utils
@@ -148,10 +149,48 @@ class Mini(Window):
         return self.box_size * 2 + 1
 
     def get_hints_height(self):
-        return max(
-            (len(direction_clues) + 1 for direction_clues in self.clues.values()),
-            default=0,
-        )
+        return max((len(lines) for lines in self.get_clue_columns()), default=0)
+
+    def get_clue_column_width(self):
+        gap = 4
+        num_columns = max(1, len(self.clues))
+        return max(1, (self.width - gap * (num_columns - 1)) // num_columns)
+
+    def get_clue_columns(self):
+        current_clue = self.get_current_clue()
+        column_width = self.get_clue_column_width()
+        clue_columns = []
+
+        for direction, direction_clues in self.clues.items():
+            lines = [(direction + ':', curses.A_BOLD)]
+            for number, clue_text in direction_clues.items():
+                is_active = (
+                    int(number) == current_clue
+                    and self.is_down == (direction == 'Down')
+                )
+                if is_active:
+                    mod = (
+                        self.colors.get_color_id('Cyan', 'Black')
+                        | curses.A_BOLD
+                    )
+                else:
+                    mod = 0
+
+                prefix = f'  {number}: '
+                available_width = max(1, column_width - len(prefix))
+                wrapped = textwrap.wrap(
+                    clue_text,
+                    width=available_width,
+                    break_long_words=True,
+                    break_on_hyphens=False,
+                ) or ['']
+                continuation_prefix = ' ' * len(prefix)
+                for index, clue_line in enumerate(wrapped):
+                    line_prefix = prefix if index == 0 else continuation_prefix
+                    lines.append((line_prefix + clue_line, mod))
+            clue_columns.append(lines)
+
+        return clue_columns
 
     def get_current_clue(self):
         pos = self.get_word_start()
@@ -299,42 +338,23 @@ class Mini(Window):
 
         start_row = self.get_start_row()
 
-        current_clue = self.get_current_clue()
-        clue_columns = []
-        for direction, direction_clues in self.clues.items():
-            lines = [(direction + ':', curses.A_BOLD)]
-            for number, clue_text in direction_clues.items():
-                text = f'  {number}: {clue_text}'
-                is_active = (
-                    int(number) == current_clue
-                    and self.is_down == (direction == 'Down')
-                )
-                if is_active:
-                    mod = (
-                        self.colors.get_color_id('Cyan', 'Black')
-                        | curses.A_BOLD
-                    )
-                else:
-                    mod = 0
-                lines.append((text, mod))
-            clue_columns.append(lines)
-
-        column_widths = [
-            max((len(text) for text, _ in lines), default=0)
-            for lines in clue_columns
-        ]
-        total_width = sum(column_widths) + max(0, len(clue_columns) - 1) * 4
+        clue_columns = self.get_clue_columns()
+        column_width = self.get_clue_column_width()
+        total_width = (
+            len(clue_columns) * column_width
+            + max(0, len(clue_columns) - 1) * 4
+        )
         column_start = max(0, (self.width - total_width) // 2)
         hint_row = start_row + total_height + 1
-        for lines, width in zip(clue_columns, column_widths):
+        for lines in clue_columns:
             for row_offset, (text, mod) in enumerate(lines):
                 self.draw_text(
-                    text[:max(0, self.width - column_start)],
+                    text[:column_width],
                     hint_row + row_offset,
                     column_start,
                     mod,
                 )
-            column_start += width + 4
+            column_start += column_width + 4
 
 
     def match_corner(self, corner):

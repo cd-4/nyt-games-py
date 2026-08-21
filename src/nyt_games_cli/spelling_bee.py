@@ -34,6 +34,12 @@ class SpellingBee(Window):
         self.draw_board()
         self.draw_current_text()
         self.draw_guessed_words()
+        self.draw_help()
+
+    def draw_help(self):
+        text = 'A-Z: Add Letter | <Enter> Submit | <Ctrl-R> Shuffle Letters'
+        start_col = max(0, (self.width - len(text)) // 2)
+        self.draw_text(text[:self.width], self.height - 1, start_col, 0)
 
     def clear_page(self):
         for c in range(self.width):
@@ -95,19 +101,23 @@ class SpellingBee(Window):
             self.draw_text(line, start_row + r, start_col, 0)
 
 
+    @staticmethod
+    def get_board_template():
+        return [
+            "       ___",
+            "      /   \\",
+            "  .--   *   --.",
+            " /    \\___/    \\",
+            " \\ *  /   \\  * /",
+            "   --   *   -- ",
+            " /    \\___/    \\",
+            " \\ *  /   \\  * /",
+            "  '--   *   --'",
+            "      \\___/",
+        ]
+
     def draw_board(self):
-        line1  = "       ___"
-        line2  = "      /   \\"
-        line3  = "  .--  *  --."
-        line4  = " /    \\___/    \\"
-        line5  = " \\ *  /   \\  * /"
-        line6  = "  --  *  --"
-        line7  = " /    \\___/    \\"
-        line8  = " \\ *  /   \\  * /"
-        line9  = "  '--  *  --'"
-        line10 = "      \\___/"
-        lines = [line1, line2, line3, line4, line5,
-                 line6, line7, line8, line9, line10]
+        lines = self.get_board_template()
 
         letter_positions = [
                 [2, 8],

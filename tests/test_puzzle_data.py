@@ -18,6 +18,35 @@ class FakeColors:
 
 
 class PuzzleDataTests(unittest.TestCase):
+    def test_connections_shuffle_preserves_solved_cards(self):
+        game = object.__new__(Connections)
+        game.solved = ['Solved']
+        game.all_cards = [
+            {'content': f'S{index}', 'category': 'Solved'} for index in range(4)
+        ] + [
+            {'content': f'U{index}', 'category': 'Unsolved'} for index in range(4)
+        ]
+
+        with patch('nyt_games_cli.connections.random.shuffle') as shuffle:
+            shuffle.side_effect = lambda cards: cards.reverse()
+            game.shuffle()
+
+        self.assertEqual(
+            [card['content'] for card in game.all_cards[:4]],
+            ['S0', 'S1', 'S2', 'S3'],
+        )
+        self.assertEqual(
+            [card['content'] for card in game.all_cards[4:]],
+            ['U3', 'U2', 'U1', 'U0'],
+        )
+
+    def test_spelling_bee_board_uses_only_terminal_safe_characters(self):
+        board = '\n'.join(SpellingBee.get_board_template())
+
+        self.assertNotIn('', board)
+        self.assertNotIn('', board)
+        self.assertTrue(board.isascii())
+
     @staticmethod
     def make_mini(size=3):
         game = object.__new__(Mini)
@@ -111,6 +140,30 @@ class PuzzleDataTests(unittest.TestCase):
         inactive = [mod for text, mod in drawn if text == '  1: Down 0']
         self.assertEqual(active, [64 | curses.A_BOLD])
         self.assertEqual(inactive, [0])
+
+    def test_mini_wraps_long_clues_within_half_the_terminal(self):
+        game = self.make_mini()
+        game.width = 40
+        game.clues['Across']['1'] = (
+            'A very long crossword clue that must wrap between words'
+        )
+        drawn = []
+        game.draw_text = (
+            lambda text, row, col, mod: drawn.append((text, row, col, mod))
+        )
+
+        game.draw_hints()
+
+        clue_width = game.get_clue_column_width()
+        self.assertLessEqual(clue_width, game.width // 2)
+        self.assertTrue(all(len(text) <= clue_width for text, *_ in drawn))
+        self.assertTrue(all(col + len(text) <= game.width for text, _, col, _ in drawn))
+        across_start = min(col for _, _, col, _ in drawn)
+        wrapped_across_lines = [
+            text for text, _, col, _ in drawn
+            if col == across_start and text.strip() not in ('Across:',)
+        ]
+        self.assertGreater(len(wrapped_across_lines), len(game.clues['Across']))
 
     @patch.object(__main__.curses, 'endwin')
     @patch.object(__main__.curses, 'nl')
